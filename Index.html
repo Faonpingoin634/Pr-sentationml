@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prédiction de la Régularité TER — Rapport de Projet</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-logo">
+    <div class="sncf-logo-box">SNCF</div>
+    <span class="cover-logo-text">TER — Trains Express Régionaux</span>
+  </div>
+
+  <div class="cover-badge">Projet Machine Learning · 2026</div>
+
+  <h1>Prédiction de la<br><span>Régularité TER</span></h1>
+
+  <p class="subtitle">
+    Système d'aide à la décision basé sur le machine learning pour
+    prédire la ponctualité mensuelle des trains régionaux français
+  </p>
+
+  <div class="cover-divider"></div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <div class="label">Type</div>
+      <div class="value">Fil Rouge ML</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Données</div>
+      <div class="value">2013 – 2026</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Régions</div>
+      <div class="value">31 régions</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Technologie</div>
+      <div class="value">Python · Streamlit</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="page">
+
+  <div class="section-header" style="margin-top: 10px;">
+    <div class="section-number">1</div>
+    <h2>Contexte & Objectifs</h2>
+  </div>
+
+  <div class="intro-hero">
+    <div class="intro-icon">🚆</div>
+    <div>
+      <h3 style="margin-top:0;">Pourquoi ce projet ?</h3>
+      <p>
+        La SNCF publie en open data les indicateurs mensuels de régularité pour chaque ligne TER régionale.
+        Un train est considéré <strong>en retard s'il arrive à plus de 5 minutes</strong> de l'heure prévue
+        au terminus. La régularité — pourcentage de trains à l'heure — est l'indicateur-clé de qualité de
+        service pour les voyageurs et les autorités organisatrices.
+      </p>
+      <p>
+        Ce projet développe un <strong>système de prédiction mois par mois</strong>, par région,
+        en combinant l'historique SNCF avec des données météorologiques pour anticiper les dégradations
+        de ponctualité.
+      </p>
+    </div>
+  </div>
+
+  <h3>Objectifs du projet</h3>
+
+  <div class="card-grid">
+    <div class="card red">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">Prédiction</div>
+      <div class="card-value" style="font-size:1.1rem;">Régularité M+1</div>
+      <div class="card-desc">Pour chaque région, prédire la régularité du mois suivant</div>
+    </div>
+    <div class="card blue">
+      <div class="card-icon">🌦️</div>
+      <div class="card-title">Météo</div>
+      <div class="card-value" style="font-size:1.1rem;">Impact quantifié</div>
+      <div class="card-desc">Mesurer l'effet du gel, des tempêtes, des canicules sur la ponctualité</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Dashboard</div>
+      <div class="card-value" style="font-size:1.1rem;">5 onglets</div>
+      <div class="card-desc">Interface interactive pour explorer les données et lancer des prédictions</div>
+    </div>
+    <div class="card orange">
+      <div class="card-icon">🎰</div>
+      <div class="card-title">Incertitude</div>
+      <div class="card-value" style="font-size:1.1rem;">IC P10–P90</div>
+      <div class="card-desc">Intervalle de confiance pour quantifier l'incertitude opérationnelle</div>
+    </div>
+  </div>
+
+  <h3>Faits saillants sur les données</h3>
+
+  <div class="kpi-row">
+    <div class="kpi-box">
+      <span class="num">31</span>
+      <span class="lbl">régions TER</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">~5 300</span>
+      <span class="lbl">observations</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">13 ans</span>
+      <span class="lbl">d'historique</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">434</span>
+      <span class="lbl">appels API météo</span>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <h2>Données & Sources</h2>
+  </div>
+
+  <h3>Source 1 : Open Data SNCF</h3>
+  <p>
+    Le fichier <code>regularite-mensuelle-ter.csv</code> est publié en open data par SNCF.
+    Il contient, pour chaque région et chaque mois depuis mars 2013 :
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Colonne</th>
+        <th>Description</th>
+        <th>Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>year_month</strong></td><td>Période (AAAA-MM)</td><td>Date</td></tr>
+      <tr><td><strong>region</strong></td><td>Région administrative TER</td><td>Texte</td></tr>
+      <tr><td><strong>trains_planned</strong></td><td>Trains programmés</td><td>Entier</td></tr>
+      <tr><td><strong>trains_operated</strong></td><td>Trains effectués</td><td>Entier</td></tr>
+      <tr><td><strong>trains_cancelled</strong></td><td>Trains annulés</td><td>Entier</td></tr>
+      <tr><td><strong>regularity_pct</strong></td><td>% de trains à l'heure (cible ML)</td><td>Flottant</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Source 2 : Open-Meteo Archive API</h3>
+  <p>
+    Pour chaque région, des données météo quotidiennes sont récupérées via l'API publique Open-Meteo,
+    puis agrégées en statistiques mensuelles. Les données sont mises en cache pour éviter
+    des appels redondants.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🌡️</div>
+      <div class="card-title">Température</div>
+      <div class="card-value" style="font-size:1rem;">Min / Moy / Max</div>
+      <div class="card-desc">Amplitude thermique mensuelle</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌧️</div>
+      <div class="card-title">Précipitations</div>
+      <div class="card-value" style="font-size:1rem;">mm totaux</div>
+      <div class="card-desc">Pluies abondantes (>20 mm/j)</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">❄️</div>
+      <div class="card-title">Neige & Gel</div>
+      <div class="card-value" style="font-size:1rem;">cm / jours</div>
+      <div class="card-desc">Jours de gel, épisodes neigeux</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">💨</div>
+      <div class="card-title">Vent</div>
+      <div class="card-value" style="font-size:1rem;">km/h max</div>
+      <div class="card-desc">Tempêtes (>80 km/h)</div>
+    </div>
+  </div>
+
+  <h3>Événements perturbateurs connus</h3>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="t-date">Avril 2018</div>
+      <div class="t-text">Grève nationale SNCF — forte perturbation du trafic TER</div>
+    </div>
+    <div class="timeline-item">
+      <div class="t-date">Décembre 2019</div>
+      <div class="t-text">Grève nationale de 35 jours — plus longue grève depuis 1995, impact massif</div>
+    </div>
+    <div class="timeline-item">
+      <div class="t-date">Mars 2020</div>
+      <div class="t-text">COVID-19 — confinement national, trafic quasi nul pendant plusieurs semaines</div>
+    </div>
+    <div class="timeline-item">
+      <div class="t-date">Janvier 2022</div>
+      <div class="t-text">Tempête Eunice — vents violents sur plusieurs régions</div>
+    </div>
+    <div class="timeline-item">
+      <div class="t-date">Mars 2023</div>
+      <div class="t-text">Grèves contre la réforme des retraites — perturbations intermittentes</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="page page-break">
+
+  <div class="section-header" style="margin-top: 10px;">
+    <div class="section-number">3</div>
+    <h2>Architecture du Projet</h2>
+  </div>
+
+  <div class="arch-box">
+    <span class="dir">📁 Machine learning Final rl/</span><br>
+    &nbsp;&nbsp;<span class="file">app.py</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Point d'entrée Streamlit</span><br>
+    &nbsp;&nbsp;<span class="dir">📁 src/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">📁 data/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">processor.py</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># ETL : chargement → météo → features → CSV enrichi</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">weather_api.py</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Client Open-Meteo avec cache</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">📁 model/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">predictor.py</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Classe TERPredictor : prédiction avec lags + climatologie</span><br>
+    &nbsp;&nbsp;<span class="dir">📁 dashboard/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">data_loader.py</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Chargement CSV + filtres</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">📁 views/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">overview.py / regional.py / weather.py / explorer.py / prediction.py</span><br>
+    &nbsp;&nbsp;<span class="dir">📁 models/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">model_gbr.pkl</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Modèle central Gradient Boosting</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">model_gbr_low.pkl</span> / <span class="file">model_gbr_high.pkl</span>
+    &nbsp;&nbsp;&nbsp;<span class="comment"># Quantiles P10 / P90</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">model_meta.json</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Métadonnées : features, métriques, régions</span><br>
+    &nbsp;&nbsp;<span class="dir">📁 notebooks/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">01_exploration_donnees.ipynb</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># EDA</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">02_modelisation.ipynb</span>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># Pipeline ML complet</span><br>
+    &nbsp;&nbsp;<span class="dir">📁 data/raw/</span> regularite-mensuelle-ter.csv<br>
+    &nbsp;&nbsp;<span class="dir">📁 data/processed/</span> enriched_ter.csv · weather_cache.csv
+  </div>
+
+  <h3>Pipeline de traitement des données</h3>
+
+  <div class="pipeline">
+    <div class="pipeline-step">
+      <div class="step-icon">📄</div>
+      <div class="step-name">CSV SNCF</div>
+      <div class="step-sub">Open Data<br>2013–2026</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-icon">🌐</div>
+      <div class="step-name">API Météo</div>
+      <div class="step-sub">Open-Meteo<br>434 appels</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-icon">⚙️</div>
+      <div class="step-name">Feature Eng.</div>
+      <div class="step-sub">40+ variables<br>lags, cycles</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-icon">🤖</div>
+      <div class="step-name">Entraînement</div>
+      <div class="step-sub">Walk-forward<br>5 folds</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-icon">💾</div>
+      <div class="step-name">Modèles</div>
+      <div class="step-sub">.pkl<br>3 modèles</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-step">
+      <div class="step-icon">📱</div>
+      <div class="step-name">Dashboard</div>
+      <div class="step-sub">Streamlit<br>Port 8501</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <h2>Approche Machine Learning</h2>
+  </div>
+
+  <h3>Variables d'entrée (features)</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Catégorie</th>
+        <th>Features</th>
+        <th>Intérêt</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-gray">Région</span></td>
+        <td><code>region_enc</code></td>
+        <td>Encode les 31 régions en entier (LabelEncoder)</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">Temporel</span></td>
+        <td><code>feat_month_sin</code>, <code>feat_month_cos</code>, <code>feat_year</code></td>
+        <td>Encodage cyclique du mois (évite la coupure déc/jan)</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">Météo cont.</span></td>
+        <td>temp_mean, precip_total, snowfall, wind_max, frost_ratio…</td>
+        <td>Conditions climatiques agrégées mensuellement</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">Événements</span></td>
+        <td>has_frost, has_storm, has_snow, has_heatwave, has_heavy_rain</td>
+        <td>Flags binaires d'événements extrêmes</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">Lags</span></td>
+        <td><code>lag_1</code>, <code>lag_2</code>, <code>rolling_mean_3</code></td>
+        <td>Inertie temporelle — la régularité passée prédit le futur</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Modèle : Gradient Boosting Regressor</h3>
+
+  <div class="highlight-box">
+    <p>
+      Le <strong>Gradient Boosting Regressor (GBR)</strong> de scikit-learn est un ensemble d'arbres
+      de décision entraînés séquentiellement, chaque arbre corrigeant les erreurs du précédent.
+      Il excelle sur des données tabulaires avec relations non-linéaires et est robuste aux valeurs aberrantes.
+    </p>
+  </div>
+
+  <p>Trois modèles sont entraînés en parallèle :</p>
+
+  <div class="card-grid">
+    <div class="card blue">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">Modèle central</div>
+      <div class="card-value" style="font-size:1rem;">model_gbr.pkl</div>
+      <div class="card-desc">Minimise l'erreur quadratique — prédiction principale</div>
+    </div>
+    <div class="card orange">
+      <div class="card-icon">📉</div>
+      <div class="card-title">Borne basse (P10)</div>
+      <div class="card-value" style="font-size:1rem;">model_gbr_low.pkl</div>
+      <div class="card-desc">Régression quantile — scénario pessimiste</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">📈</div>
+      <div class="card-title">Borne haute (P90)</div>
+      <div class="card-value" style="font-size:1rem;">model_gbr_high.pkl</div>
+      <div class="card-desc">Régression quantile — scénario optimiste</div>
+    </div>
+  </div>
+
+  <h3>Validation : Walk-Forward Cross-Validation</h3>
+
+  <p>
+    La donnée TER étant fortement temporelle (saisonnalité, tendances, chocs), une
+    validation croisée classique ("shuffle") introduirait de la fuite d'information.
+    La validation <strong>walk-forward</strong> garantit que l'entraînement précède toujours le test.
+  </p>
+
+  <div style="background:#f8f9fa; border-radius:10px; padding:20px; margin:20px 0; font-family:'Courier New',monospace; font-size:0.82rem; line-height:2;">
+    <div style="color:#999; margin-bottom:8px;">// 5 folds chronologiques (train → test)</div>
+    <div><span style="background:#bbdefb; padding:2px 8px; border-radius:3px;">Fold 1</span> ████████░░░░░░░░░░░░ train | ▓▓ test</div>
+    <div><span style="background:#bbdefb; padding:2px 8px; border-radius:3px;">Fold 2</span> ██████████░░░░░░░░░░ train | ▓▓ test</div>
+    <div><span style="background:#bbdefb; padding:2px 8px; border-radius:3px;">Fold 3</span> ████████████░░░░░░░░ train | ▓▓ test</div>
+    <div><span style="background:#bbdefb; padding:2px 8px; border-radius:3px;">Fold 4</span> ██████████████░░░░░░ train | ▓▓ test</div>
+    <div><span style="background:#bbdefb; padding:2px 8px; border-radius:3px;">Fold 5</span> ████████████████░░░░ train | ▓▓ test</div>
+    <div style="margin-top:8px; color:#999;">→ Les métriques sont moyennées sur les 5 folds</div>
+  </div>
+
+  <h3>Climatologie pour la prédiction</h3>
+  <div class="highlight-box">
+    <p>
+      Les prévisions météo réelles sont peu fiables au-delà de 14 jours.
+      Pour prédire le mois M+1, le système utilise les <strong>normales climatologiques</strong> :
+      les moyennes historiques de chaque variable météo pour ce mois et cette région, calculées
+      sur toutes les années disponibles. C'est méthodologiquement honnête et reproductible.
+    </p>
+  </div>
+
+</div>
+
+<div class="page page-break">
+
+  <div class="section-header" style="margin-top: 10px;">
+    <div class="section-number">5</div>
+    <h2>Résultats & Performances</h2>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-box">
+      <span class="num">1.41%</span>
+      <span class="lbl">MAE (erreur absolue moyenne)</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">1.88%</span>
+      <span class="lbl">RMSE</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">0.652</span>
+      <span class="lbl">R² score</span>
+    </div>
+    <div class="kpi-box">
+      <span class="num">~3.9 pts</span>
+      <span class="lbl">Largeur IC P10–P90</span>
+    </div>
+  </div>
+
+  <h3>Comparaison avec le modèle de référence</h3>
+
+  <div class="metric-compare">
+    <div class="metric-box bad">
+      <div class="m-label">Baseline naïf</div>
+      <div class="m-value">1.70%</div>
+      <div class="m-desc">Répéter le mois précédent<br>(prédicteur sans apprentissage)</div>
+    </div>
+    <div class="metric-box good">
+      <div class="m-label">Notre modèle GBR</div>
+      <div class="m-value">1.41%</div>
+      <div class="m-desc">Gradient Boosting + météo + lags<br><strong>−17% d'erreur</strong></div>
+    </div>
+  </div>
+
+  <h3>Interprétation des résultats</h3>
+  <p>
+    Un MAE de <strong>1.41 ± 0.19%</strong> signifie que sur des conditions normales,
+    le modèle prédit la régularité à ±1.4 point de pourcentage. Autrement dit,
+    si le modèle prédit 88%, la réalité sera entre 86.6% et 89.4% dans la majorité des cas.
+  </p>
+  <p>
+    Le R² de 0.65 indique que le modèle explique 65% de la variance de la régularité,
+    ce qui est solide pour des données ferroviaires soumises à des chocs imprévisibles
+    (grèves, accidents, météo extrême non anticipée).
+  </p>
+
+  <div class="highlight-box">
+    <p>
+      <strong>Limites avouées :</strong> le modèle ne peut pas anticiper les grèves, les pandémies,
+      ni les accidents. Lors de la grève de décembre 2019, la régularité a chuté de plus de 10 points,
+      ce que aucun modèle statistique ne peut prédire sans information exogène.
+    </p>
+  </div>
+
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <h2>Dashboard Streamlit</h2>
+  </div>
+
+  <p>
+    L'interface utilisateur est une application Streamlit accessible à l'adresse
+    <code>http://localhost:8501</code> (lancement : <code>streamlit run app.py</code>).
+    Elle est thémée aux couleurs SNCF (<strong>#CE1126</strong>) et contient 5 onglets.
+  </p>
+
+  <div class="tab-grid">
+    <div class="tab-card">
+      <div class="tab-card-header">📊 Onglet 1 — Vue d'ensemble</div>
+      <div class="tab-card-body">
+        KPIs nationaux (régularité moyenne, taux d'annulation, trains opérés)
+        <ul>
+          <li>Courbe de tendance avec annotations des événements perturbateurs</li>
+          <li>Heatmap région × année (palette RdYlGn)</li>
+          <li>Comparaison avec la même période l'an passé</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-header">🗺️ Onglet 2 — Analyse régionale</div>
+      <div class="tab-card-body">
+        Analyse multi-régions avec filtres dynamiques
+        <ul>
+          <li>Séries temporelles superposées par région</li>
+          <li>Boxplots par saison et par mois</li>
+          <li>Classement des régions par régularité</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-header">🌦️ Onglet 3 — Impact météo</div>
+      <div class="tab-card-body">
+        Relations météo-régularité visualisées
+        <ul>
+          <li>Nuages de points (température vs régularité)</li>
+          <li>Boxplots stratifiés (gel / tempête / canicule)</li>
+          <li>Matrice de corrélation des features météo</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tab-card">
+      <div class="tab-card-header">🔍 Onglet 4 — Explorateur</div>
+      <div class="tab-card-body">
+        Navigateur de données avec export
+        <ul>
+          <li>Table filtrée (date, région, saison, événement)</li>
+          <li>Export CSV en un clic</li>
+          <li>Résumé du nombre de lignes filtrées</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-card" style="margin-bottom: 25px;">
+    <div class="tab-card-header">🔮 Onglet 5 — Prédiction (le cœur du projet)</div>
+    <div class="tab-card-body" style="padding: 16px;">
+      <p style="font-size:0.88rem; margin-bottom: 10px;">
+        L'utilisateur sélectionne une <strong>région</strong> et un <strong>mois cible</strong>,
+        puis le système calcule :
+      </p>
+      <ul style="margin: 0 0 10px 15px; font-size:0.83rem;">
+        <li>La prédiction centrale (modèle GBR)</li>
+        <li>L'intervalle de confiance P10–P90</li>
+        <li>Un badge de risque coloré (Faible / Modéré / Élevé)</li>
+        <li>La climatologie utilisée comme features météo</li>
+        <li>L'historique récent des lags de la région</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Niveaux de risque dans l'interface</h3>
+
+  <div class="risk-row">
+    <div class="risk-box green">
+      <div class="risk-icon">✅</div>
+      <div class="risk-name">Faible</div>
+      <div class="risk-range">Régularité prédite ≥ 90%</div>
+    </div>
+    <div class="risk-box orange">
+      <div class="risk-icon">⚠️</div>
+      <div class="risk-name">Modéré</div>
+      <div class="risk-range">85% ≤ régularité < 90%</div>
+    </div>
+    <div class="risk-box red">
+      <div class="risk-icon">🚨</div>
+      <div class="risk-name">Élevé</div>
+      <div class="risk-range">Régularité prédite < 85%</div>
+    </div>
+  </div>
+
+  <h3>Aperçu de la jauge de prédiction</h3>
+
+  <div class="gauge-preview">
+    <div style="font-size:0.8rem; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:2px; margin-bottom:20px;">
+      Exemple de sortie — Région : Bretagne · Mois : Mars 2026
+    </div>
+    <div class="gauge-value">88.3%</div>
+    <div class="gauge-label" style="margin-top:5px;">Régularité prédite</div>
+    <div class="gauge-interval">Intervalle P10–P90 : [86.0% – 90.2%]</div>
+    <div style="margin-top:15px;">
+      <span style="background:#fff3e0; color:#e65100; padding:6px 16px; border-radius:20px; font-size:0.85rem; font-weight:700;">
+        ⚠️ Risque MODÉRÉ
+      </span>
+      <span style="margin-left:15px; font-size:0.78rem; color:rgba(255,255,255,0.4);">MAE modèle : ±1.41%</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="page page-break">
+
+  <div class="section-header" style="margin-top: 10px;">
+    <div class="section-number">7</div>
+    <h2>Stack Technique</h2>
+  </div>
+
+  <div class="card-grid">
+    <div class="card blue">
+      <div class="card-icon">🐍</div>
+      <div class="card-title">Langage</div>
+      <div class="card-value" style="font-size:1.1rem;">Python 3.10+</div>
+    </div>
+    <div class="card red">
+      <div class="card-icon">🤖</div>
+      <div class="card-title">Machine Learning</div>
+      <div class="card-value" style="font-size:1.1rem;">scikit-learn</div>
+      <div class="card-desc">GradientBoostingRegressor + quantile</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Visualisation</div>
+      <div class="card-value" style="font-size:1.1rem;">Plotly · Seaborn</div>
+      <div class="card-desc">Graphiques interactifs et statiques</div>
+    </div>
+    <div class="card orange">
+      <div class="card-icon">🌐</div>
+      <div class="card-title">Web App</div>
+      <div class="card-value" style="font-size:1.1rem;">Streamlit</div>
+      <div class="card-desc">Dashboard interactif port 8501</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Bibliothèque</th><th>Rôle</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>pandas</strong></td><td>Manipulation et fusion des données TER + météo</td></tr>
+      <tr><td><strong>numpy</strong></td><td>Calculs numériques, encodage cyclique</td></tr>
+      <tr><td><strong>scikit-learn</strong></td><td>GBR, LabelEncoder, métriques (MAE, RMSE, R²)</td></tr>
+      <tr><td><strong>joblib</strong></td><td>Sérialisation des modèles entraînés (.pkl)</td></tr>
+      <tr><td><strong>requests</strong></td><td>Appels HTTP vers l'API Open-Meteo</td></tr>
+      <tr><td><strong>streamlit</strong></td><td>Framework web pour le dashboard interactif</td></tr>
+      <tr><td><strong>plotly</strong></td><td>Jauges, heatmaps, scatter plots interactifs</td></tr>
+      <tr><td><strong>seaborn / matplotlib</strong></td><td>Graphiques statiques (boxplots, distributions)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-header">
+    <div class="section-number">8</div>
+    <h2>Bilan & Perspectives</h2>
+  </div>
+
+  <h3>Ce qui fonctionne bien</h3>
+
+  <div class="card-grid">
+    <div class="card green">
+      <div class="card-icon">✅</div>
+      <div class="card-title">Précision</div>
+      <div class="card-value" style="font-size:1rem;">MAE 1.41%</div>
+      <div class="card-desc">−17% vs baseline naïf sur conditions normales</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">✅</div>
+      <div class="card-title">Robustesse</div>
+      <div class="card-value" style="font-size:1rem;">Walk-forward</div>
+      <div class="card-desc">Validation sans fuite d'information temporelle</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">✅</div>
+      <div class="card-title">Incertitude</div>
+      <div class="card-value" style="font-size:1rem;">P10–P90</div>
+      <div class="card-desc">Quantification honnête de l'incertitude opérationnelle</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">✅</div>
+      <div class="card-title">UX</div>
+      <div class="card-value" style="font-size:1rem;">5 onglets</div>
+      <div class="card-desc">Interface métier prête pour les décideurs SNCF</div>
+    </div>
+  </div>
+
+  <h3>Limitations connues</h3>
+
+  <div class="card-grid">
+    <div class="card red">
+      <div class="card-icon">⚠️</div>
+      <div class="card-title">Grèves</div>
+      <div class="card-desc">Impossible à prédire sans données sociales exogènes</div>
+    </div>
+    <div class="card red">
+      <div class="card-icon">⚠️</div>
+      <div class="card-title">Climat</div>
+      <div class="card-desc">La climatologie assume la stationnarité — le réchauffement n'est pas capturé</div>
+    </div>
+    <div class="card red">
+      <div class="card-icon">⚠️</div>
+      <div class="card-title">Nouvelles régions</div>
+      <div class="card-desc">Moins de 24 mois d'historique → intervalles de confiance plus larges</div>
+    </div>
+  </div>
+
+  <h3>Perspectives d'amélioration</h3>
+
+  <table>
+    <thead>
+      <tr><th>Amélioration</th><th>Bénéfice attendu</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Intégration de données sociales</strong> (préavis de grève, mouvements sociaux)</td>
+        <td>Prédire les chocs sociaux, réduire le MAE en période de crise</td>
+      </tr>
+      <tr>
+        <td><strong>Modèle LSTM / Transformers</strong> pour les séries temporelles longues</td>
+        <td>Mieux capturer les dépendances longue portée inter-régions</td>
+      </tr>
+      <tr>
+        <td><strong>Prévisions météo réelles</strong> (ECMWF) pour horizons court terme ≤14 jours</td>
+        <td>Améliorer la précision sur les prédictions à court terme</td>
+      </tr>
+      <tr>
+        <td><strong>Déploiement cloud</strong> (Streamlit Cloud, Hugging Face Spaces)</td>
+        <td>Rendre l'outil accessible sans installation locale</td>
+      </tr>
+      <tr>
+        <td><strong>Alertes automatiques</strong> par email/SMS si risque élevé prévu</td>
+        <td>Valeur métier directe pour les gestionnaires de réseau</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-header">
+    <div class="section-number">9</div>
+    <h2>Conclusion</h2>
+  </div>
+
+  <div class="intro-hero">
+    <div class="intro-icon">🏁</div>
+    <div>
+      <p>
+        Ce projet démontre la faisabilité d'un <strong>système de prédiction de régularité ferroviaire</strong>
+        basé sur des données ouvertes, sans infrastructure coûteuse ni données propriétaires.
+      </p>
+      <p>
+        En combinant <strong>13 ans de données SNCF</strong>, des <strong>données météo climatologiques</strong>
+        et un <strong>Gradient Boosting Regressor avec validation walk-forward</strong>, nous atteignons
+        une MAE de 1.41% — soit 17% de mieux qu'un prédicteur naïf.
+      </p>
+      <p>
+        Le dashboard Streamlit offre une interface exploratoire complète et un module de prédiction
+        opérationnel, avec gestion explicite de l'incertitude via des intervalles de confiance P10–P90
+        et des badges de risque visuels.
+      </p>
+      <p style="margin-bottom:0;">
+        Ce travail illustre comment les méthodes de machine learning peuvent apporter de la
+        <strong>valeur décisionnelle concrète</strong> dans le domaine du transport ferroviaire,
+        avec une transparence méthodologique adaptée à un usage professionnel.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div style="margin-bottom: 8px;">
+    <span style="font-weight:700; color:#555;">Prédiction de la Régularité TER</span>
+    &nbsp;·&nbsp; Projet Machine Learning Fil Rouge &nbsp;·&nbsp; 2026
+  </div>
+  <div>
+    Sources : SNCF Open Data · Open-Meteo Archive API &nbsp;|&nbsp;
+    Stack : Python · scikit-learn · Streamlit · Plotly
+  </div>
+</footer>
+
+</body>
+</html>
