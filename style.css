@@ -2,6 +2,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 :root {
   --sncf-red: #CE1126;
   --sncf-dark: #1a1a2e;
@@ -652,4 +657,124 @@ footer {
   font-size: 0.88rem;
   color: #555;
   margin-top: 3px;
+}
+
+/* ── Responsive mobile ──────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Cover */
+  .cover {
+    padding: 120px 24px 50px;
+    min-height: unset;
+    height: auto;
+  }
+
+  .cover h1 {
+    font-size: 2rem;
+  }
+
+  .cover p.subtitle {
+    font-size: 1rem;
+    margin-bottom: 30px;
+  }
+
+  .cover-meta {
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+  }
+
+  .cover-logo {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+  }
+
+  .cover-badge {
+    margin-top: 30px;
+  }
+
+  /* Page */
+  .page {
+    padding: 30px 18px;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Grids → 1 colonne */
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tab-grid,
+  .metric-compare {
+    grid-template-columns: 1fr;
+  }
+
+  /* Intro hero */
+  .intro-hero {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  /* Risk row */
+  .risk-row {
+    flex-direction: column;
+  }
+
+  /* Tables : scroll horizontal contenu dans le parent */
+  .page {
+    overflow-x: hidden;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  /* Pipeline : scroll interne, ne déborde pas sur la page */
+  .pipeline {
+    max-width: 100%;
+  }
+
+  .pipeline-step {
+    min-width: 90px;
+    padding: 10px 8px;
+  }
+
+  .pipeline-step .step-name {
+    font-size: 0.65rem;
+  }
+
+  .pipeline-step .step-sub {
+    font-size: 0.6rem;
+  }
+
+  /* Gauge */
+  .gauge-preview {
+    padding: 20px 16px;
+  }
+
+  /* Arch box */
+  .arch-box {
+    font-size: 0.7rem;
+    padding: 14px;
+    overflow-x: hidden;
+  }
+
+  /* Masquer les commentaires trop longs sur mobile */
+  .arch-box .comment {
+    display: none;
+  }
+
+  /* Footer */
+  footer {
+    padding: 24px 18px;
+    margin-top: 30px;
+  }
 }
